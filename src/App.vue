@@ -7,13 +7,13 @@
           <RouterLink to="/">Головна</RouterLink>
           
           <div class="dropdown">
-            <span class="dropbtn">Конструктори</span>
+            <span class="dropbtn">Cервіси</span>
             <div class="dropdown-content">
-              <RouterLink to="/editor">Матеріали та фурнітура</RouterLink>
+              <RouterLink to="/excel">Матеріали та фурнітура</RouterLink>
             </div>
           </div>
                    
-          <RouterLink v-if="!authStore.user" to="/login" class="auth-link">Войти</RouterLink>
+          <RouterLink v-if="!authStore.user" to="/login" class="auth-link">Вхід</RouterLink>
           <RouterLink v-else to="/profile" class="auth-link">{{ authStore.user.username }}</RouterLink>
         </nav>
       </div>
@@ -25,42 +25,67 @@
 
     <footer class="footer">
       <div class="footer-inner">
-        <p>&copy; 2026 MebelShik. Все права защищены.</p>
+        <p>&copy; 2026 MebelShik</p>
       </div>
     </footer>
   </div>
+  <Notifications />
+  <FeedbackButton />
 </template>
 
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.js'
+import { onMounted } from 'vue'
+import Notifications from './views/Components/Notifications.vue'
+import FeedbackButton from '@/components/FeedbackButton.vue'
+
+
 
 const authStore = useAuthStore()
+
+onMounted(() => {
+  authStore.checkAuth()
+})
 
 </script>
 
 <style>
+@import '@/assets/styles.css';
+* {
+  box-sizing: border-box;
+}
+
+
+
 .app {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  font-family: 'Segoe UI', Arial, sans-serif;
 }
-
 .header {
   background: linear-gradient(135deg, #2c3e50, #3498db);
   color: white;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  flex-shrink: 0;
 }
 
-.header-inner {
+.header-inner,
+.content,
+.footer-inner {
+  width: 100%;
   max-width: 1600px;
   margin: 0 auto;
-  padding: 15px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  padding: 0 20px;
+}
+
+.content {
+  flex: 1;
   width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 30px 20px;
+  box-sizing: border-box;
 }
 
 .logo {
@@ -144,25 +169,13 @@ const authStore = useAuthStore()
   }
 }
 
-.content {
-  flex: 1;
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 30px 20px;
-  width: 100%;
-}
+
 
 .footer {
   background: #2c3e50;
   color: #ddd;
+  flex-shrink: 0;
 }
 
-.footer-inner {
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 20px;
-  text-align: center;
-  font-size: 14px;
-  width: 100%;
-}
+
 </style>

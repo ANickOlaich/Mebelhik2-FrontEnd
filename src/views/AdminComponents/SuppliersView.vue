@@ -1,9 +1,16 @@
 <template>
   <div class="suppliers-management">
     <h1>Поставщики</h1>
+    <div class="toolbar">
+      <button class="btn-add" @click="openCreate">
+      + Добавить поставщика
+    </button>
+    </div>
+    <div v-if="suppliersStore.loading">Загрузка...</div>
+    <div v-else-if="suppliersStore.error" class="error">
+      {{ suppliersStore.error }}
+    </div>
 
-    <div v-if="loading">Загрузка...</div>
-    <div v-else-if="error" class="error">{{ error }}</div>
 
     <table v-else class="suppliers-table">
       <thead>
@@ -12,158 +19,223 @@
           <th>Логотип</th>
           <th>Название</th>
           <th>Сайт</th>
-          <th>Печать</th>
           <th>Сортировка</th>
           <th>Действия</th>
         </tr>
       </thead>
+
       <tbody>
-        <tr v-for="supplier in suppliers" :key="supplier.key">
-          <td>{{ supplier.key }}</td>
+        <tr v-for="supplier in suppliersStore.suppliers" :key="supplier.id">
+          <td>{{ supplier.id }}</td>
+
           <td>
-            <img v-if="supplier.logo" :src="supplier.logo" class="logo" alt="logo">
-            <span v-else class="no-logo">—</span>
+            <img
+              v-if="supplier.logo"
+              :src="getImageUrl(supplier.logo)"
+              class="material-image"
+              alt="logo"
+            />
+            <span v-else>—</span>
           </td>
+
           <td>{{ supplier.name }}</td>
+
           <td>
-            <a :href="supplier.site" target="_blank" class="site-link">{{ supplier.site }}</a>
+            <a :href="supplier.site" target="_blank">
+              {{ supplier.site }}
+            </a>
           </td>
-          <td>
-            <span :class="{ 'yes': supplier.isPrintable, 'no': !supplier.isPrintable }">
-              {{ supplier.isPrintable ? 'Да' : 'Нет' }}
-            </span>
-          </td>
+
+
           <td>{{ supplier.sortOrder }}</td>
+
           <td>
-            <button @click="editSupplier(supplier)" class="btn-edit">Изменить</button>
-            <button @click="deleteSupplier(supplier.id)" class="btn-delete">Удалить</button>
+            <button @click="openEdit(supplier)" class="btn-edit">
+              Изменить
+            </button>
+
+            <button
+              @click="removeSupplier(supplier.id)"
+              class="btn-delete"
+            >
+              Удалить
+            </button>
           </td>
         </tr>
       </tbody>
     </table>
+  </div>
 
-    <!-- Модальное окно (пока заглушка) -->
+    <!-- MODAL -->
     <div v-if="showModal" class="modal">
       <div class="modal-content">
-        <h2>Редактировать поставщика</h2>
-        <p>Модальное окно будет добавлено позже</p>
-        <button @click="closeModal" class="btn-cancel">Закрыть</button>
+
+        <h2>
+          {{ isEdit ? 'Редактировать поставщика' : 'Новый поставщик' }}
+        </h2>
+
+        <div class="form-group">
+          <label>Название</label>
+          <input v-model="form.name" />
+        </div>
+
+        <div class="form-group">
+          <label>Сайт</label>
+          <input v-model="form.site" />
+        </div>
+
+        <div class="form-group">
+          <label>Парсер</label>
+          <input v-model="form.parser" />
+        </div>
+
+        <div class="form-group">
+          <label>Логотип</label>
+          <ImageField v-model="form.logo" />
+        </div>
+
+        <div class="form-group">
+          <label>Комментарий</label>
+          <input v-model="form.note" />
+        </div>
+
+        <div class="form-group">
+          <label>Сортировка</label>
+          <input type="number" v-model="form.sortOrder" />
+        </div>
+
+        <div class="form-group">
+          <label>
+            <input type="checkbox" v-model="form.isGlobal" />
+            Глобальный
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label>
+            <input type="checkbox" v-model="form.allowed" />
+            Разрешён
+          </label>
+        </div>
+
+
+        <div class="modal-buttons">
+          <button @click="save" class="btn-save">
+            {{ isEdit ? 'Сохранить' : 'Создать' }}
+          </button>
+
+          <button @click="closeModal" class="btn-cancel">
+            Отмена
+          </button>
+        </div>
+
       </div>
     </div>
-  </div>
+   
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import apiClient from '@/api/client.js'
+import { useSuppliersStore } from '@/stores/suppliers'
+import ImageField from '../Components/ImageField.vue'
 
-const suppliers = ref([])
-const loading = ref(true)
-const error = ref(null)
+const suppliersStore = useSuppliersStore()
+
 const showModal = ref(false)
+const isEdit = ref(false)
+const currentId = ref(null)
 
-const fetchSuppliers = async () => {
-  try {
-    const res = await apiClient.get('/admin/suppliers/all')
-    suppliers.value = res.data
-  } catch (err) {
-    error.value = 'Ошибка загрузки поставщиков'
-  } finally {
-    loading.value = false
+const form = ref({
+  name: '',
+  site: '',
+  sortOrder: 10
+})
+
+onMounted(() => {
+  suppliersStore.fetchSuppliers()
+})
+
+const openCreate = () => {
+  isEdit.value = false
+  currentId.value = null
+
+  form.value = {
+    name: '',
+    site: '',
+    parser: '',
+    sortOrder: 10,
+    logo: '',
+    note: '',
+    isGlobal: true,
+    allowed: true
   }
-}
 
-const editSupplier = (supplier) => {
   showModal.value = true
-  // позже добавим форму редактирования
 }
 
-const deleteSupplier = async (id) => {
-  if (!confirm('Удалить поставщика?')) return
-  try {
-    await apiClient.delete(`/admin/suppliers/${id}`)
-    suppliers.value = suppliers.value.filter(s => s.id !== id)
-  } catch (e) {
-    alert('Ошибка удаления')
+const openEdit = (supplier) => {
+  isEdit.value = true
+  currentId.value = supplier.id
+
+  form.value = {
+    name: supplier.name,
+    site: supplier.site,
+    parser: supplier.parser,
+    sortOrder: supplier.sortOrder,
+    logo: supplier.logo,
+    note: supplier.note,
+    isGlobal: supplier.isGlobal,
+    allowed: supplier.allowed
   }
+
+  showModal.value = true
 }
 
 const closeModal = () => {
   showModal.value = false
 }
 
-onMounted(fetchSuppliers)
+const save = async () => {
+  try {
+    if (isEdit.value) {
+      await suppliersStore.updateSupplier(currentId.value, form.value)
+    } else {
+      await suppliersStore.createSupplier(form.value)
+    }
+
+    closeModal()
+
+  } catch (e) {
+    alert(e.message)
+  }
+}
+
+const removeSupplier = async (id) => {
+  if (!confirm('Удалить поставщика?')) return
+
+  try {
+    await suppliersStore.deleteSupplier(id)
+  } catch (e) {
+    alert(e.message)
+  }
+}
+
+const getImageUrl = (path) => {
+  if (!path) return ''
+
+  // уже внешняя ссылка
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path
+  }
+
+  // локальный файл
+  return import.meta.env.DEV
+    ? `http://localhost:3000${path}`
+    : path
+}
+
 </script>
 
 <style scoped>
-.suppliers-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
 
-.suppliers-table th,
-.suppliers-table td {
-  padding: 14px;
-  text-align: left;
-  border-bottom: 1px solid #eee;
-}
-
-.suppliers-table th {
-  background: #34495e;
-  color: white;
-}
-
-.logo {
-  width: 50px;
-  height: 50px;
-  object-fit: contain;
-  border-radius: 4px;
-}
-
-.no-logo {
-  color: #999;
-}
-
-.site-link {
-  color: #3498db;
-  text-decoration: none;
-}
-
-.site-link:hover {
-  text-decoration: underline;
-}
-
-.yes { color: #27ae60; font-weight: bold; }
-.no { color: #e74c3c; }
-
-.btn-edit, .btn-delete {
-  padding: 6px 12px;
-  margin-right: 8px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.btn-edit { background: #3498db; color: white; }
-.btn-delete { background: #e74c3c; color: white; }
-
-.modal {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  padding: 24px;
-  border-radius: 8px;
-  width: 400px;
-  text-align: center;
-}
 </style>

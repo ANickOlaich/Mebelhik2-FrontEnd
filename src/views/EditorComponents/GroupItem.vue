@@ -14,19 +14,13 @@
         📄
       </button>
     </div>
-    
     <RowItem
       v-for="(row, index) in group.rows"
       :key="row.id"
       :row="row"
-      :headers="headers"
-      :col-widths="colWidths"
       :index="index"
-      :suppliers="suppliers"
-      @update-row="updateRow"
-      @delete="deleteRow"
-      @update-image="updateImage"
     />
+
   </div>
 
   
@@ -35,12 +29,15 @@
 <script setup>
 import { computed } from 'vue'
 import RowItem from './RowItem.vue'
+import { useSuppliersStore } from '@/stores/suppliers'
+import { useMaterialsStore } from '@/stores/materials'
+
+const suppliersStore = useSuppliersStore()
+const materialsStore = useMaterialsStore()
 
 const props = defineProps({
   group: Object,
-  headers: Array,
   colWidths: Array,
-  suppliers: Array
 })
 
 const emit = defineEmits([
@@ -50,17 +47,15 @@ const emit = defineEmits([
   'toggle-printable'
 ])
 
-
-
 // Вычисляем isPrintable
 const isPrintable = computed(() => {
-  const supplier = props.suppliers.find(s => s.key === props.group.class)
+  const supplier = suppliersStore.suppliers.find(s => s.key === props.group.class)
   return supplier ? supplier.isPrintable !== false : true
 })
 
 // Функция getAlias
 const getAlias = (className) => {
-  const supplier = props.suppliers.find(s => s.key === className)
+  const supplier = suppliersStore.suppliers.find(s => s.key === className)
   return supplier ? supplier.name : className
 }
 

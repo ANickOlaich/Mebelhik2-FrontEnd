@@ -42,7 +42,6 @@ const handleRegister = async () => {
   }
   try {
     await authStore.register(form.value)
-    alert('Регистрация прошла успешно!')
     router.push('/login')
   } catch (err) {
     alert('Ошибка: ' + (err.response?.data?.message || err.message))

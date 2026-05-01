@@ -2,8 +2,10 @@
   <div class="users-management">
     <h1>Управление пользователями</h1>
 
-    <div v-if="loading">Загрузка...</div>
-    <div v-else-if="error" class="error">{{ error }}</div>
+    <div v-if="usersStore.loading">Загрузка...</div>
+    <div v-else-if="usersStore.error" class="error">
+      {{ usersStore.error }}
+    </div>
 
     <table v-else class="users-table">
       <thead>
@@ -15,35 +17,46 @@
           <th>Действия</th>
         </tr>
       </thead>
+
       <tbody>
-        <tr v-for="user in users" :key="user.id">
+        <tr v-for="user in usersStore.users" :key="user.id">
           <td>{{ user.id }}</td>
           <td>{{ user.username || user.name }}</td>
           <td>{{ user.email }}</td>
-          <td><span :class="`role-${user.role}`">{{ user.role }}</span></td>
           <td>
-            <button @click="openEditModal(user)" class="btn-edit">Изменить</button>
-            <button @click="deleteUser(user.id)" class="btn-delete">Удалить</button>
+            <span :class="`role-${user.role}`">
+              {{ user.role }}
+            </span>
+          </td>
+
+          <td>
+            <button @click="openEditModal(user)" class="btn-edit">
+              Изменить
+            </button>
+
+            <button @click="removeUser(user.id)" class="btn-delete">
+              Удалить
+            </button>
           </td>
         </tr>
       </tbody>
     </table>
 
-    <!-- Модальное окно редактирования -->
+    <!-- MODAL -->
     <div v-if="showModal" class="modal">
       <div class="modal-content">
         <h2>Редактировать пользователя</h2>
-        
+
         <div class="form-group">
           <label>Имя:</label>
-          <input v-model="editForm.name" type="text">
+          <input v-model="editForm.name" type="text" />
         </div>
-        
+
         <div class="form-group">
           <label>Email:</label>
-          <input v-model="editForm.email" type="email">
+          <input v-model="editForm.email" type="email" />
         </div>
-        
+
         <div class="form-group">
           <label>Роль:</label>
           <select v-model="editForm.role">
@@ -53,8 +66,13 @@
         </div>
 
         <div class="modal-buttons">
-          <button @click="saveUser" class="btn-save">Сохранить</button>
-          <button @click="closeModal" class="btn-cancel">Отмена</button>
+          <button @click="saveUser" class="btn-save">
+            Сохранить
+          </button>
+
+          <button @click="closeModal" class="btn-cancel">
+            Отмена
+          </button>
         </div>
       </div>
     </div>
@@ -63,38 +81,32 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import apiClient from '@/api/client.js'
+import { useUsersStore } from '@/stores/users'
 
-const users = ref([])
-const loading = ref(true)
-const error = ref(null)
+const usersStore = useUsersStore()
 
 const showModal = ref(false)
 const currentUserId = ref(null)
+
 const editForm = ref({
   name: '',
   email: '',
   role: 'user'
 })
 
-const fetchUsers = async () => {
-  try {
-    const res = await apiClient.get('/admin/users')
-    users.value = res.data
-  } catch (err) {
-    error.value = 'Ошибка загрузки'
-  } finally {
-    loading.value = false
-  }
-}
+onMounted(() => {
+  usersStore.fetchUsers()
+})
 
 const openEditModal = (user) => {
   currentUserId.value = user.id
+
   editForm.value = {
     name: user.username || user.name || '',
     email: user.email,
     role: user.role
   }
+
   showModal.value = true
 }
 
@@ -104,25 +116,22 @@ const closeModal = () => {
 
 const saveUser = async () => {
   try {
-    await apiClient.put(`/admin/users/${currentUserId.value}`, editForm.value)
-    await fetchUsers()        // обновляем список
+    await usersStore.updateUser(currentUserId.value, editForm.value)
     closeModal()
-  } catch (err) {
-    alert('Ошибка при сохранении')
-  }
-}
-
-const deleteUser = async (id) => {
-  if (!confirm('Удалить пользователя?')) return
-  try {
-    await apiClient.delete(`/admin/users/${id}`)
-    users.value = users.value.filter(u => u.id !== id)
   } catch (e) {
-    alert('Ошибка удаления')
+    alert(e.message)
   }
 }
 
-onMounted(fetchUsers)
+const removeUser = async (id) => {
+  if (!confirm('Удалить пользователя?')) return
+
+  try {
+    await usersStore.deleteUser(id)
+  } catch (e) {
+    alert(e.message)
+  }
+}
 </script>
 
 <style scoped>

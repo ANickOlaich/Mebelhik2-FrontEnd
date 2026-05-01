@@ -1,40 +1,29 @@
-<!-- AdminView.vue -->
 <template>
   <div class="admin-layout">
-    <!-- Левое меню -->
+
     <aside class="sidebar">
       <h2>Админ панель</h2>
+
       <nav>
-        <a href="#" @click.prevent="setView('users')">Пользователи</a>
-        <a href="#" @click.prevent="setView('suppliers')">Поставщики</a>
-        <a href="#" @click.prevent="setView('posts')">Посты</a>
-        <a href="#" @click.prevent="setView('settings')">Настройки</a>
+        <RouterLink to="/admin/statistic">Статистика</RouterLink>
+        <RouterLink to="/admin/users">Пользователи</RouterLink>
+        <RouterLink to="/admin/suppliers">Поставщики</RouterLink>
+        <RouterLink to="/admin/materials">Материалы</RouterLink>
+        <RouterLink to="/admin/categories">Категории публикаций</RouterLink>
+        <RouterLink to="/admin/posts">Публикации</RouterLink>
+        <RouterLink to="/admin/feedback">Отзывы</RouterLink>
       </nav>
     </aside>
 
-    <!-- Основной контент -->
     <main class="content">
-      <UsersView v-if="currentView === 'users'" />  
-      <SuppliersView v-if="currentView === 'suppliers'" />
-      <PostsView v-if="currentView === 'posts'" />
-      <SettingsView v-if="currentView === 'settings'" />
+      <RouterView />
     </main>
+
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import UsersView from './UsersView.vue'
-import SuppliersView from './SuppliersView.vue'
-//import PostsView from './PostsView.vue'
-//import SettingsView from './SettingsView.vue'
-
-const currentView = ref('users')
-
-
-const setView = (view) => {
-  currentView.value = view
-}
+import { RouterView, RouterLink } from 'vue-router'
 </script>
 
 <style scoped>

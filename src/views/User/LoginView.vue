@@ -32,7 +32,6 @@ const form = ref({ email: '', password: '' })
 const handleLogin = async () => {
   try {
     await authStore.login(form.value)
-    alert('Вход выполнен успешно!')
     router.push('/')
   } catch (err) {
     alert('Ошибка: ' + (err.response?.data?.message || err.message))

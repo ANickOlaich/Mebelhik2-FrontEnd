@@ -1,14 +1,13 @@
-<!-- RowItem.vue -->
 <template>
-  <!-- РЯД (только просмотр) -->
+  <!-- РЯД -->
   <div class="table-row" @click="openModal">
-    <div class="td" style="width:50px">{{ getCounter }}</div>
+    <div class="td" style="width:50px">{{ index + 1 }}</div>
 
     <div
-      v-for="(h, idx) in headers"
+      v-for="(h, idx) in materialsStore.visibleHeaders"
       :key="h"
       class="td"
-      :style="{ width: colWidths[idx] + 'px' }"
+      :style="{ width: materialsStore.colWidths[idx] + 'px' }"
     >
       {{ row[h] || '' }}
     </div>
@@ -16,7 +15,7 @@
     <div class="td" style="width:140px">
       <img
         v-if="row.image"
-        :src="row.image"
+        :src="getImageUrl(row.image)"
         style="max-width:80px; max-height:60px; object-fit:contain"
       />
       <span v-else style="color:#999">—</span>
@@ -29,75 +28,76 @@
       <h3>Редактирование записи</h3>
 
       <div class="form">
-        <div v-for="(h, idx) in headers" :key="h" class="field">
+
+        <!-- Все поля КРОМЕ Класс -->
+        <div v-for="h in materialsStore.visibleHeaders" :key="h" class="field">
           <label>{{ h }}</label>
           <input v-model="localRow[h]" />
         </div>
-         <!-- ОТДЕЛЬНО "Класс" -->
+
+        <!-- Класс отдельно -->
         <div class="field">
-        <label>Постачальник</label>
-        <select v-model="localRow['Класс']" class="class-select">
-            <option 
-            v-for="(alias, key) in suppliers.reduce((acc, s) => (acc[s.key] = s.name, acc), {})" 
-            :key="key" 
-            :value="key"
+          <label>Поставщик</label>
+          <select v-model="localRow['Класс']">
+            <option
+              v-for="s in suppliersStore.suppliers"
+              :key="s.key"
+              :value="s.key"
             >
-            {{ alias }}
+              {{ s.name }}
             </option>
-        </select>
+          </select>
         </div>
+
+        <!-- Картинка -->
         <div class="field">
           <label>Изображение</label>
-          <input
-            type="file"
-            accept="image/*"
-            @change="uploadImage"
-          />
-
-          <div style="margin-top:10px">
-            <img
-              v-if="localRow.image"
-              :src="localRow.image"
-              style="max-width:120px; max-height:100px"
-            />
-          </div>
+          <input type="file" accept="image/*" @change="uploadImage" />
         </div>
+
       </div>
 
       <div class="actions">
         <button @click="save">Сохранить</button>
         <button @click="closeModal">Отмена</button>
-        <button @click="emitDelete" style="color:red">Удалить</button>
+        <button @click="remove" style="color:red">Удалить</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, watch, computed } from "vue"
+import { ref, reactive, toRaw } from 'vue'
+import apiClient from '@/api/client.js'
+import { useMaterialsStore } from '@/stores/materials'
+import { useSuppliersStore } from '@/stores/suppliers'
+
+const materialsStore = useMaterialsStore()
+const suppliersStore = useSuppliersStore()
 
 const props = defineProps({
   row: Object,
-  headers: Array,
-  colWidths: Array,
-  index: Number,
-  suppliers: Array
-})
-
-const emit = defineEmits(["delete", "update-row", "update-image"])
-let NID = 1
-
-const getCounter = computed(() => {
-  return props.index + 1
+  index: Number
 })
 
 const isModal = ref(false)
-
-// локальная копия (ВАЖНО: не мутируем props напрямую)
 const localRow = reactive({})
 
+// --------------------
+// helpers
+// --------------------
+const getImageUrl = (path) => {
+  if (!path) return ''
+  return import.meta.env.DEV
+    ? `http://localhost:3000${path}`
+    : path
+}
+
+// --------------------
+// modal
+// --------------------
 const openModal = () => {
-  Object.assign(localRow, JSON.parse(JSON.stringify(props.row)))
+  Object.assign(localRow, structuredClone(toRaw(props.row)))
   isModal.value = true
 }
 
@@ -105,25 +105,48 @@ const closeModal = () => {
   isModal.value = false
 }
 
-const save = () => {
-  emit("update-row", localRow)
-  isModal.value = false
+// --------------------
+// save (API + store)
+// --------------------
+const save = async () => {
+  try {
+    const { data } = await apiClient.post('/materials/upsert', {
+      name: localRow['Наименование материала'],
+      supplier: localRow['Класс'],
+      article: localRow['Артикул'],
+      image: localRow.image
+    })
+
+    // обновляем изображение из бэка
+    localRow.image = data.material.image
+
+    // 🔥 ОБНОВЛЕНИЕ ЧЕРЕЗ STORE
+    materialsStore.updateRow({ ...localRow })
+
+    closeModal()
+  } catch (err) {
+    console.error(err)
+  }
 }
 
-
-const emitDelete = () => {
-  emit("delete", props.row)
-  isModal.value = false
+// --------------------
+// delete
+// --------------------
+const remove = () => {
+  materialsStore.deleteRow(props.row.id)
+  closeModal()
 }
 
+// --------------------
+// upload image (локально)
+// --------------------
 const uploadImage = (e) => {
   const file = e.target.files[0]
   if (!file) return
 
   const reader = new FileReader()
-  reader.onload = ev => {
+  reader.onload = (ev) => {
     localRow.image = ev.target.result
-    emit("update-image", props.row, ev.target.result)
   }
   reader.readAsDataURL(file)
 }

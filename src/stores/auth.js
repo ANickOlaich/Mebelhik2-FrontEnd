@@ -7,12 +7,9 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem('token') || null)
   const loading = ref(false)
 
-  // Регистрация
   const register = async (data) => {
     loading.value = true
     try {
-
-      console.log('Registering user with data:', data)
       const res = await authApi.register(data)
       return res.data
     } finally {
@@ -20,7 +17,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Вход
   const login = async (data) => {
     loading.value = true
     try {
@@ -36,26 +32,40 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Выход
   const logout = async () => {
     try {
       await authApi.logout()
-    } catch (e) {
-      console.log('Logout error')
-    } finally {
+    } catch (e) {}
+    finally {
       token.value = null
       user.value = null
       localStorage.removeItem('token')
     }
   }
 
-  // Проверка авторизации (при загрузке приложения)
-  const checkAuth = () => {
-    if (token.value) {
-      // Можно добавить запрос на /me для получения актуальных данных пользователя
-      console.log('User token exists')
-    }
+const checkAuth = async () => {
+  const savedToken = localStorage.getItem('token')
+  
+  if (!savedToken) {
+    token.value = null
+    user.value = null
+    return false
   }
+
+  token.value = savedToken
+
+  try {
+    const res = await authApi.me()        // ← теперь работает
+    user.value = res.data                 // бэкенд должен вернуть { id, role, ... }
+    return true
+  } catch (e) {
+    console.log('checkAuth ошибка:', e.response?.status || e)
+    token.value = null
+    user.value = null
+    localStorage.removeItem('token')
+    return false
+  }
+}
 
   return {
     user,
